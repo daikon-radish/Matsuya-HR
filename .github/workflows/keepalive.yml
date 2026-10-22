@@ -1,0 +1,24 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after 7 days without activity. This pings the
+# database every 3 days so the portal is always ready (e.g. over long holidays).
+on:
+  schedule:
+    - cron: '17 2 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping database
+        env:
+          URL: ${{ vars.VITE_SUPABASE_URL }}
+          KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          curl -fsS -X POST "$URL/rest/v1/rpc/ping" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" -d '{}'
