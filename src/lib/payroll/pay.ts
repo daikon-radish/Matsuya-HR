@@ -169,6 +169,9 @@ export function calculatePayslip(input: PayrollInput): PayslipResult {
       return { date: s.date, hours: shiftActualHours(s), dayType };
     });
 
+  const unconfirmed = input.shifts.filter((s) => s.status === 'scheduled' && s.date >= monthStart && s.date <= monthEnd && inEmployment(s.date)).length;
+  if (unconfirmed) warnings.push(`${unconfirmed} shift(s) not yet confirmed as worked; counted at the scheduled hours. Confirm them in Timesheets.`);
+
   const totalHours = worked.reduce((a, s) => a + s.hours, 0);
   const phHours = worked.filter((s) => s.dayType === 'public_holiday').reduce((a, s) => a + s.hours, 0);
   const restShifts = worked.filter((s) => s.dayType === 'rest_day');
@@ -258,9 +261,10 @@ export function calculatePayslip(input: PayrollInput): PayslipResult {
         detail: `${phDays} day(s) × $${fmt(daily)}`,
       });
     }
-    // Rest-day pay under Part IV (employer-requested): up to half a normal day = half day's pay, more = full day's pay
+    // Rest-day pay under Part IV. Rostered shifts are at the employer's request:
+    // up to half a normal day = 1 day's pay, more = 2 days' pay (on top of the monthly salary).
     if (emp.ot_eligible && restShifts.length) {
-      const restDays = restShifts.reduce((a, s) => a + (s.hours <= normalDailyHours / 2 ? 0.5 : 1), 0);
+      const restDays = restShifts.reduce((a, s) => a + (s.hours <= normalDailyHours / 2 ? 1 : 2), 0);
       addEarning({
         code: 'REST',
         label: 'Rest day worked',

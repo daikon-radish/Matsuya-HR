@@ -195,11 +195,19 @@ describe('Payslip', () => {
     expect(r.hours.ot).toBe(1);
     expect(r.earnings.find((e) => e.code === 'OT')?.amount).toBe(15.73);
   });
-  it('full-timer rest day work', () => {
+  it('full-timer rest day work at the employer’s request', () => {
     const r = run({ employee: { monthly_basic: 2600, ot_eligible: true }, shifts: [shift('2026-10-24', '10:00', '19:00')] });
-    // 8h on a Saturday: one day's pay (2600 × 12 / 260 = 120) and no OT (normal day is 8.8h)
-    expect(r.earnings.find((e) => e.code === 'REST')?.amount).toBe(120);
+    // 8h on a Saturday is more than half a normal day: two days' pay (2 × 2600 × 12 / 260 = 240) and no OT (normal day is 8.8h)
+    expect(r.earnings.find((e) => e.code === 'REST')?.amount).toBe(240);
     expect(r.hours.ot).toBe(0);
+  });
+  it('warns about rostered shifts not yet confirmed as worked', () => {
+    const r = run({ shifts: [{ ...shift('2026-10-21', '09:00', '18:00'), status: 'scheduled' }] });
+    expect(r.warnings.some((w) => w.startsWith('1 shift(s) not yet confirmed'))).toBe(true);
+  });
+  it('full-timer short rest day shift gets one day’s pay', () => {
+    const r = run({ employee: { monthly_basic: 2600, ot_eligible: true }, shifts: [shift('2026-10-24', '10:00', '14:00', 0)] });
+    expect(r.earnings.find((e) => e.code === 'REST')?.amount).toBe(120);
   });
   const pt: Partial<Employee> = { employment_type: 'PT', monthly_basic: null, hourly_rate: 14, ot_eligible: true, contract_hours_per_week: 28, work_days: [1, 3, 5, 6] };
   it('part-timer hourly wages, employer-only CPF under $500', () => {

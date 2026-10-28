@@ -147,10 +147,21 @@ export default function Roster() {
     if (!range || view !== 'timeGridWeek') return;
     const prevStart = addDays(range.start, -7);
     try {
-      const prev = must(await supabase.from('shifts').select('*').gte('date', prevStart).lt('date', range.start)) as Shift[];
+      const [p, c] = await Promise.all([
+        supabase.from('shifts').select('*').gte('date', prevStart).lt('date', range.start),
+        supabase.from('shifts').select('employee_id, date, start_time').gte('date', range.start).lt('date', range.end),
+      ]);
+      const prev = must(p) as Shift[];
       if (!prev.length) return setError('No shifts in the previous week to copy.');
-      if (!confirm(`Copy ${prev.length} shift(s) from the week of ${formatDate(prevStart)} into this week?`)) return;
-      const rows = prev.map((s) => ({
+      // Skip shifts already in this week (e.g. from "Repeat weekly"), so nobody is booked twice.
+      const key = (s: Pick<Shift, 'employee_id' | 'date' | 'start_time'>) => `${s.employee_id}|${s.date}|${hhmm(s.start_time)}`;
+      const existing = new Set((must(c) as Shift[]).map(key));
+      const toCopy = prev.filter((s) => !existing.has(key({ ...s, date: addDays(s.date, 7) })));
+      if (!toCopy.length) return setError('Every shift from the previous week is already in this week.');
+      const skipped = prev.length - toCopy.length;
+      const msg = `Copy ${toCopy.length} shift(s) from the week of ${formatDate(prevStart)} into this week?` + (skipped ? ` ${skipped} already here will be skipped.` : '');
+      if (!confirm(msg)) return;
+      const rows = toCopy.map((s) => ({
         employee_id: s.employee_id,
         date: addDays(s.date, 7),
         start_time: s.start_time,

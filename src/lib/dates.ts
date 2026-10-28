@@ -32,6 +32,15 @@ export function addDays(s: YMD, n: number): YMD {
   return toYMD(d);
 }
 
+/** Same day n months later (clamped to the month's last day, e.g. 30 Nov + 3 = 28 Feb) */
+export function addMonths(s: YMD, n: number): YMD {
+  const d = parseYMD(s);
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d.getUTCDate(), last));
+  return toYMD(target);
+}
+
 /** 0 = Sunday … 6 = Saturday */
 export function weekday(s: YMD): number {
   return parseYMD(s).getUTCDay();

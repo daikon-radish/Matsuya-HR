@@ -134,7 +134,10 @@ export default function PayrollRunPage() {
         r.cpf.ageBand ? AGE_BAND_LABELS[r.cpf.ageBand] : '', r.hours.worked, r.hours.ot, r.ow, r.aw, r.grossWages, r.cpf.employee, r.cpf.employer, r.cpf.total,
         r.shgFund === 'NONE' ? '' : r.shgFund, r.shg, r.sdl, r.totalEarnings, r.totalDeductions, r.net];
     });
-    const total = ['TOTAL', '', '', '', '', '', '', '', '', '', totals.gross, totals.cpfEE, totals.cpfER, totals.cpfEE + totals.cpfER, '', totals.shg, totals.sdl, totals.earnings, '', totals.net];
+    // Sums of cents pick up floating-point noise (7366.219999…), so round the totals row.
+    const cents = (x: number) => Math.round(x * 100) / 100;
+    const total = ['TOTAL', '', '', '', '', '', '', '', '', '', totals.gross, totals.cpfEE, totals.cpfER, totals.cpfEE + totals.cpfER, '', totals.shg, totals.sdl, totals.earnings, '', totals.net]
+      .map((v) => (typeof v === 'number' ? cents(v) : v));
     const lines = payslips.flatMap((p) => [
       ...p.result.earnings.map((e) => [p.result.employee.full_name, 'Earning', e.label, e.detail ?? '', e.wageType, e.amount]),
       ...p.result.deductions.map((d) => [p.result.employee.full_name, 'Deduction', d.label, d.detail ?? '', '', -d.amount]),
@@ -426,7 +429,7 @@ function PayslipEditor({ payslip, run, ctx, company, onClose, onSaved }: {
           </label>
         </div>
       )}
-      <PayslipDoc result={result} company={company ?? { name: 'Mastuya Foods', uen: '', address: '' }} payDate={run.pay_date ?? todayYMD()} draft={!readOnly} />
+      <PayslipDoc result={result} company={company ?? { name: 'Matsuya Foods', uen: '', address: '' }} payDate={run.pay_date ?? todayYMD()} draft={!readOnly} />
     </Modal>
   );
 }

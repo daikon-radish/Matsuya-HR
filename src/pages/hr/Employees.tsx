@@ -21,7 +21,7 @@ export default function Employees() {
       'Residency', 'PR since', 'SHG fund', 'Date of birth', 'Start date', 'End date', 'Active'];
     const rows = (data ?? []).map((e) => [e.emp_code, e.full_name, e.email, e.phone, e.employment_type, e.job_title, e.outlet, e.monthly_basic, e.hourly_rate,
       e.fixed_allowance, e.ot_eligible ? 'Yes' : 'No', e.residency, e.pr_start_date, SHG_LABELS[e.shg_fund], e.dob, e.start_date, e.end_date, e.active ? 'Yes' : 'No']);
-    downloadWorkbook('Mastuya employees.xlsx', [{ name: 'Employees', rows: [header, ...rows], widths: [8, 24, 26, 12, 6, 18, 14, 12, 10, 12, 10, 10, 11, 16, 12, 11, 11, 7] }]);
+    downloadWorkbook('Matsuya employees.xlsx', [{ name: 'Employees', rows: [header, ...rows], widths: [8, 24, 26, 12, 6, 18, 14, 12, 10, 12, 10, 10, 11, 16, 12, 11, 11, 7] }]);
   }
 
   return (

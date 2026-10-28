@@ -25,7 +25,8 @@ export async function downloadWorkbook(filename: string, sheets: SheetSpec[]): P
 /** First sheet as row objects keyed by header, with raw cell values (numbers for dates/times). */
 export async function readFirstSheet(file: File): Promise<Record<string, unknown>[]> {
   const XLSX = await loadXLSX();
-  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: false });
+  // raw: CSV text stays as typed, so '12/10/2026' reaches parseDateCell as day/month instead of SheetJS's US month/day.
+  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: false, raw: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   return XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: true, defval: null });
 }

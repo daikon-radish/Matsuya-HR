@@ -1,4 +1,4 @@
--- Mastuya HR: database schema, security rules and seed data.
+-- Matsuya HR: database schema, security rules and seed data.
 -- Run once in Supabase → SQL Editor → New query → paste → Run.
 -- Safe to re-run: tables use IF NOT EXISTS and policies are dropped/recreated.
 
@@ -377,6 +377,6 @@ insert into public.holidays (date, name) values
 on conflict (date) do nothing;
 
 insert into public.settings (key, value) values
-  ('company', '{"name": "Mastuya Foods", "uen": "", "address": ""}'),
+  ('company', '{"name": "Matsuya Foods", "uen": "", "address": ""}'),
   ('payroll', '{"ot_multiplier": 1.5, "ot_daily_threshold": 9, "ot_weekly_threshold": 44, "pay_day": 7}')
 on conflict (key) do nothing;

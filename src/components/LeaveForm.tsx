@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { todayYMD } from '../lib/dates';
+import { addMonths, formatDate, todayYMD } from '../lib/dates';
 import { errorMessage } from '../lib/data';
 import type { Balance } from '../lib/leaveBalance';
-import { countLeaveDays } from '../lib/payroll/leave';
+import { countLeaveDays, hasThreeMonthsService } from '../lib/payroll/leave';
 import { must, supabase } from '../lib/supabase';
 import type { Employee, Holiday, LeaveType } from '../lib/types';
 import Modal from './Modal';
@@ -37,6 +37,8 @@ export default function LeaveForm({ employees, fixedEmployeeId, types, holidays,
   const days = emp ? countLeaveDays(start, end < start ? start : end, halfDay && start === end, emp.work_days, holidaySet) : 0;
   const balance = emp ? balancesFor(emp.id).find((b) => b.code === type) : undefined;
   const isSick = type === 'MC' || type === 'HOSP';
+  // Employment Act: annual leave can be taken only after 3 months' service
+  const tooNewForAL = emp && type === 'AL' && !hasThreeMonthsService(emp.start_date, start);
 
   async function submit() {
     if (!employeeId) return setError('Choose an employee.');
@@ -119,6 +121,11 @@ export default function LeaveForm({ employees, fixedEmployeeId, types, holidays,
               {balance?.remaining != null && <> · {balance.remaining} {balance.name.toLowerCase()} left this year{balance.remaining - days < 0 && <strong> (not enough)</strong>}</>}
             </div>
           )}
+          {tooNewForAL && (
+            <div className="alert warn" style={{ marginTop: 8, marginBottom: 0 }}>
+              {emp.full_name} joined on {formatDate(emp.start_date)}. Under the Employment Act, annual leave can be taken from {formatDate(addMonths(emp.start_date, 3))} (after 3 months' service).
+            </div>
+          )}
         </div>
         <label className="field span-3">
           Reason {isSick ? '' : '(optional)'}
@@ -139,7 +146,14 @@ export default function LeaveForm({ employees, fixedEmployeeId, types, holidays,
 }
 
 export async function openAttachment(path: string) {
+  // Open the tab during the click: phone browsers (Safari) block tabs opened after waiting on the network.
+  const win = window.open('', '_blank');
+  if (win) win.opener = null;
   const { data, error } = await supabase.storage.from('leave-attachments').createSignedUrl(path, 120);
-  if (error) return alert(error.message);
-  window.open(data.signedUrl, '_blank', 'noopener');
+  if (error) {
+    win?.close();
+    return alert(error.message);
+  }
+  if (win) win.location.href = data.signedUrl;
+  else window.location.href = data.signedUrl;
 }

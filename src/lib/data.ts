@@ -56,7 +56,7 @@ export async function loadSettings(): Promise<{ company: CompanySettings; payrol
   const rows = must(await supabase.from('settings').select('*')) as { key: string; value: unknown }[];
   const get = (k: string) => rows.find((r) => r.key === k)?.value as Record<string, unknown> | undefined;
   return {
-    company: { name: 'Mastuya Foods', uen: '', address: '', ...(get('company') as Partial<CompanySettings>) },
+    company: { name: 'Matsuya Foods', uen: '', address: '', ...(get('company') as Partial<CompanySettings>) },
     payroll: { ...DEFAULT_PAYROLL_SETTINGS, ...(get('payroll') as Partial<PayrollSettings>) },
   };
 }

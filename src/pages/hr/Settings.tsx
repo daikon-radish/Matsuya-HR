@@ -227,7 +227,7 @@ function BackupButton() {
         sheets.push({ name: t, rows: [cols, ...rows.map((r) => cols.map((c) => cell(r[c])))] });
       }
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadWorkbook(`Mastuya HR backup ${stamp}.xlsx`, sheets);
+      downloadWorkbook(`Matsuya HR backup ${stamp}.xlsx`, sheets);
     } catch (err) {
       alert(errorMessage(err));
     }

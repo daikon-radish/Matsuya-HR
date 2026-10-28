@@ -20,7 +20,7 @@ export default function Login() {
     <div className="auth-page">
       <form className="card auth-card stack" onSubmit={submit}>
         <div className="brand">
-          <span className="brand-mark" style={{ color: '#fff' }}>M</span> Mastuya HR
+          <span className="brand-mark" style={{ color: '#fff' }}>M</span> Matsuya HR
         </div>
         {error && <div className="alert error">{error}</div>}
         <label className="field">

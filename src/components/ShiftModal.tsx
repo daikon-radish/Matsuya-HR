@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { availabilityOn, describe, fitsShift } from '../lib/availability';
-import { addDays, shiftHours } from '../lib/dates';
+import { addDays, formatDate, shiftHours } from '../lib/dates';
 import { errorMessage, hhmm } from '../lib/data';
 import { must, supabase } from '../lib/supabase';
 import type { Availability, DayType, Employee, LeaveRequest, Shift } from '../lib/types';
@@ -79,6 +79,16 @@ export default function ShiftModal({ initial, employees, availability, leave, sh
 
   const selected = candidates.find((c) => c.e.id === d.employee_id);
 
+  // Repeated weeks the chosen employee said they can't (fully) work
+  const repeatClashes = useMemo(() => {
+    if (!d.employee_id || !repeat) return [];
+    return Array.from({ length: repeat }, (_, i) => addDays(d.date, 7 * (i + 1))).filter((date) => {
+      const fit = fitsShift(availabilityOn(d.employee_id, date, availability), d.start_time, d.end_time);
+      return fit === 'no' || fit === 'partly';
+    });
+  }, [d.employee_id, d.date, d.start_time, d.end_time, repeat, availability]);
+  const [skipClashes, setSkipClashes] = useState(true);
+
   async function save() {
     if (!d.employee_id) return setError('Choose an employee.');
     setBusy(true);
@@ -99,7 +109,8 @@ export default function ShiftModal({ initial, employees, availability, leave, sh
     try {
       if (d.id) must(await supabase.from('shifts').update(row).eq('id', d.id));
       else {
-        const rows = [row, ...Array.from({ length: repeat }, (_, i) => ({ ...row, date: addDays(d.date, 7 * (i + 1)) }))];
+        const repeats = Array.from({ length: repeat }, (_, i) => addDays(d.date, 7 * (i + 1))).filter((date) => !(skipClashes && repeatClashes.includes(date)));
+        const rows = [row, ...repeats.map((date) => ({ ...row, date }))];
         must(await supabase.from('shifts').insert(rows));
       }
       onSaved();
@@ -180,6 +191,14 @@ export default function ShiftModal({ initial, employees, availability, leave, sh
                   {[1, 2, 3, 5, 7, 11].map((n) => <option key={n} value={n}>For {n + 1} weeks</option>)}
                 </select>
               </label>
+            )}
+            {!d.id && repeatClashes.length > 0 && (
+              <div className="alert warn span-3" style={{ marginBottom: 0 }}>
+                {selected?.e.full_name} isn't (fully) available on {repeatClashes.map(formatDate).join(', ')}.
+                <label className="check mt">
+                  <input type="checkbox" checked={skipClashes} onChange={(e) => setSkipClashes(e.target.checked)} /> Don't add the shift on those dates
+                </label>
+              </div>
             )}
           </div>
         </div>

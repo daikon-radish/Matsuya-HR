@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import AvailabilityEditor from '../../components/AvailabilityEditor';
 import { todayYMD, WEEKDAY_SHORT } from '../../lib/dates';
-import { errorMessage, loadLeaveTypes, useLoad } from '../../lib/data';
+import { useAuth } from '../../lib/auth';
+import { employeeColor, errorMessage, loadLeaveTypes, useLoad } from '../../lib/data';
 import { defaultEntitlement } from '../../lib/leaveBalance';
 import { SHG_LABELS, type ShgFund } from '../../lib/payroll/shg';
 import { callAdminUsers, must, supabase } from '../../lib/supabase';
@@ -42,7 +43,20 @@ export function tempPassword(): string {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
 }
 
-export default function EmployeeEdit() {
+// Keyed by id so going from one employee (or "new") to another starts with a fresh form.
+export default function EmployeeEditRoute() {
+  const { id } = useParams();
+  return <EmployeeEdit key={id} />;
+}
+
+/** Turns database errors HR might hit into plain English. */
+function friendlyError(err: unknown): string {
+  const msg = errorMessage(err);
+  if (msg.includes('employees_emp_code_key')) return 'Another employee already has this employee code.';
+  return msg;
+}
+
+function EmployeeEdit() {
   const { id } = useParams();
   const isNew = id === 'new';
   const navigate = useNavigate();
@@ -101,7 +115,9 @@ export default function EmployeeEdit() {
         setSaved(true);
       }
     } catch (err) {
-      setError(errorMessage(err));
+      setError(friendlyError(err));
+      // The message is shown above the form, which may be scrolled out of view.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     setBusy(false);
   }
@@ -180,7 +196,7 @@ export default function EmployeeEdit() {
             </label>
             <label className="field">
               Calendar colour
-              <input type="color" value={draft.color ?? '#2563eb'} onChange={(e) => set('color', e.target.value)} />
+              <input type="color" value={draft.color ?? (isNew ? '#2563eb' : employeeColor({ id: id!, color: null }))} onChange={(e) => set('color', e.target.value)} />
             </label>
 
             <div className="section-title">Job</div>
@@ -325,6 +341,8 @@ function LoginCard({ employeeId, email: initialEmail, userId, onChange }: { empl
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unlinked, setUnlinked] = useState<Profile[]>([]);
   const [linkTo, setLinkTo] = useState('');
+  const auth = useAuth();
+  const isMe = userId != null && userId === auth.session?.user.id;
 
   useEffect(() => {
     if (!userId) {
@@ -346,6 +364,8 @@ function LoginCard({ employeeId, email: initialEmail, userId, onChange }: { empl
       must(await supabase.from('employees').update({ user_id: p.id, email: p.email }).eq('id', employeeId));
       onChange(p.id);
       setShown(null);
+      // Linking your own login adds the "Me" pages to the menu straight away.
+      if (p.id === auth.session?.user.id) await auth.refresh();
     });
 
   // Unlinking keeps the login (e.g. HR's own) but detaches it from this employee record.
@@ -354,6 +374,7 @@ function LoginCard({ employeeId, email: initialEmail, userId, onChange }: { empl
       if (!confirm('Detach this login from the employee record? The login itself is kept.')) return;
       must(await supabase.from('employees').update({ user_id: null }).eq('id', employeeId));
       onChange(null);
+      if (isMe) await auth.refresh();
     });
 
   async function run(fn: () => Promise<void>) {
@@ -413,12 +434,16 @@ function LoginCard({ employeeId, email: initialEmail, userId, onChange }: { empl
           </p>
           <div className="row">
             <button className="btn" onClick={reset} disabled={busy}>Reset password</button>
-            <button className="btn" onClick={toggleHR} disabled={busy || !profile}>
-              {profile?.role === 'hr' ? 'Remove HR access' : 'Give HR access'}
-            </button>
+            {/* Removing your own HR access or login would lock you out, so those need another HR user. */}
+            {!isMe && (
+              <button className="btn" onClick={toggleHR} disabled={busy || !profile}>
+                {profile?.role === 'hr' ? 'Remove HR access' : 'Give HR access'}
+              </button>
+            )}
             <button className="btn" onClick={unlink} disabled={busy}>Detach</button>
-            <button className="btn btn-danger" onClick={removeLogin} disabled={busy}>Remove login</button>
+            {!isMe && <button className="btn btn-danger" onClick={removeLogin} disabled={busy}>Remove login</button>}
           </div>
+          {isMe && <p className="muted small">This is your own login. Another HR user can change its HR access or remove it.</p>}
         </>
       ) : (
         <>

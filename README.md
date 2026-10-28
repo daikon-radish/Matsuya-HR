@@ -1,6 +1,6 @@
-# Mastuya HR
+# Matsuya HR
 
-A small HR portal for Mastuya Foods (Singapore): rostering, availability, timesheets, leave, and monthly payroll with CPF and printable payslips.
+A small HR portal for Matsuya Foods (Singapore): rostering, availability, timesheets, leave, and monthly payroll with CPF and printable payslips.
 
 - **HR** manages employees, assigns shifts on a calendar, records or imports hours, approves leave, runs payroll and prints payslips. Most screens export to Excel.
 - **Employees** see their shifts, set their availability, apply for leave (with an MC upload), and view or download their payslips.
@@ -56,7 +56,7 @@ The logic lives in [`src/lib/payroll/`](src/lib/payroll/) and is covered by [`pa
 | Full-timers | Monthly basic + fixed allowance. |
 | Overtime | Only for staff marked "Paid overtime". 1.5× for hours beyond 9 a day or 44 a week (Settings). Full-timer hourly rate = 12 × basic ÷ (52 × 44). Warns above 72 h/month. |
 | Public holiday worked | An extra day's basic pay for full-timers. Part-timers get the hours worked paid again at the basic rate. HR can untick it when giving a day off in lieu. |
-| Rest day worked | Full-timers with paid OT: half a day's pay (up to half a normal day) or a full day's pay; hours beyond a normal day are OT. |
+| Rest day worked | Full-timers with paid OT, rostered by HR (employer's request): one day's pay (up to half a normal day) or two days' pay; hours beyond a normal day are OT. If the employee asked to work that day, MOM's rate is half that: untick "Rest day worked" and add the amount as an earning. |
 | Unpaid leave / joining or leaving mid-month | MOM formula: monthly gross × days not worked ÷ working days in the month. Reduces CPF wages. |
 | Paid leave (part-timers) | Days × (contract hours per week ÷ work days per week) × rate. |
 | CPF | CPF Board tables from 1 Jan 2026 for citizens and PRs (including 1st/2nd-year PR graduated rates), age bands, $8,000 OW ceiling, $102,000 annual ceiling for bonuses (AW), and CPF's rounding rules. Foreigners pay none. |

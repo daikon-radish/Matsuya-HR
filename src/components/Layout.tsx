@@ -24,7 +24,7 @@ export default function Layout() {
     <div className="shell">
       <div className="mobile-bar">
         <div className="brand" style={{ padding: 0 }}>
-          <span className="brand-mark">M</span> Mastuya HR
+          <span className="brand-mark">M</span> Matsuya HR
         </div>
         <button className="btn btn-sm" style={{ background: 'transparent', color: '#fff' }} onClick={() => setOpen(true)}>
           Menu
@@ -33,7 +33,7 @@ export default function Layout() {
       <aside className={`sidebar${open ? ' open' : ''}`}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div className="brand">
-            <span className="brand-mark">M</span> Mastuya HR
+            <span className="brand-mark">M</span> Matsuya HR
           </div>
           {open && (
             <button className="btn btn-sm" onClick={() => setOpen(false)}>
