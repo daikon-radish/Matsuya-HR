@@ -23,8 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [employee, setEmployee] = useState<Employee | null>(null);
 
   const load = useCallback(async (s: Session | null) => {
-    setSession(s);
     if (!s) {
+      setSession(null);
       setProfile(null);
       setEmployee(null);
       setLoading(false);
@@ -34,6 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from('profiles').select('*').eq('id', s.user.id).maybeSingle(),
       supabase.from('employees').select('*').eq('user_id', s.user.id).maybeSingle(),
     ]);
+    // Set the session together with the profile: setting it first briefly showed "no profile yet" after signing in.
+    setSession(s);
     setProfile((p.data as Profile) ?? null);
     setEmployee((e.data as Employee) ?? null);
     setLoading(false);

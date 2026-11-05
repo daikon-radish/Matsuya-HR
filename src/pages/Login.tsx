@@ -12,8 +12,11 @@ export default function Login() {
     setBusy(true);
     setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setBusy(false);
-    if (error) setError(error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message);
+    // On success keep showing "Signing in…" until the app has loaded the profile and replaces this page.
+    if (error) {
+      setBusy(false);
+      setError(error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message);
+    }
   }
 
   return (
