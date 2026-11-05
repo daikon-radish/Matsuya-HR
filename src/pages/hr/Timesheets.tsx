@@ -58,6 +58,15 @@ export default function Timesheets() {
     return m;
   }, [shifts.data, phDates]);
 
+  async function confirmOne(s: Shift) {
+    try {
+      must(await supabase.from('shifts').update({ status: 'worked' }).eq('id', s.id));
+      shifts.reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
   async function confirmPast() {
     const today = todayYMD();
     const ids = (shifts.data ?? []).filter((s) => s.status === 'scheduled' && s.date < today).map((s) => s.id);
@@ -286,8 +295,14 @@ export default function Timesheets() {
                     <td className="nowrap">{s.actual_start ? `${hhmm(s.actual_start)}–${hhmm(s.actual_end)}` : <span className="muted">as scheduled</span>}</td>
                     <td className="num">{s.actual_break_minutes ?? s.break_minutes}m</td>
                     <td className="num">{paidHours(s).toFixed(2)}</td>
-                    <td>
+                    <td className="nowrap">
                       <span className={`badge ${s.status === 'worked' ? 'ok' : s.status === 'absent' ? 'danger' : ''}`}>{s.status}</span>
+                      {s.status === 'scheduled' && (
+                        <button className="btn btn-sm" style={{ marginLeft: 8 }} title="Mark as worked, using the scheduled hours"
+                          onClick={(e) => { e.stopPropagation(); confirmOne(s); }}>
+                          Confirm
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

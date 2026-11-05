@@ -39,6 +39,8 @@ export interface ExtraDeduction {
 /** What HR can adjust on a draft payslip. Everything else is calculated. */
 export interface PayrollOverrides {
   otHours?: number | null;
+  /** Of otHours, how many were on Sat/Sun (part-timers with a weekend rate) */
+  otWeekendHours?: number | null;
   unpaidDays?: number | null;
   /** Codes of calculated lines HR has switched off (e.g. PH pay when time-off-in-lieu is given) */
   disabled?: string[];
@@ -62,7 +64,8 @@ export interface PayslipResult {
   };
   earnings: PayLine[];
   deductions: DeductionLine[];
-  hours: { worked: number; normal: number; ot: number; publicHoliday: number; restDay: number };
+  /** otSuggested: what the timesheets come to under the OT limits, shown to HR when OT is keyed by hand */
+  hours: { worked: number; normal: number; ot: number; otSuggested?: number; publicHoliday: number; restDay: number };
   workingDays: number;
   daysPaid: number;
   unpaidDays: number;
@@ -179,7 +182,10 @@ export function calculatePayslip(input: PayrollInput): PayslipResult {
 
   // ---- Overtime: > daily threshold per day, then > weekly threshold per Mon–Sun week ----
   // Weeks spanning two months are counted within each month separately.
+  // OT is also tracked per day, so weekend OT can be paid at a part-timer's weekend rate.
+  // Weekly OT lands on the days that take the week past the threshold.
   let otCalc = 0;
+  const otByDay = new Map<YMD, number>();
   if (emp.ot_eligible) {
     const byDay = new Map<YMD, number>();
     for (const s of worked) {
@@ -187,17 +193,22 @@ export function calculatePayslip(input: PayrollInput): PayslipResult {
       byDay.set(s.date, (byDay.get(s.date) ?? 0) + s.hours);
     }
     const weekNormal = new Map<YMD, number>();
-    for (const [date, h] of byDay) {
+    for (const date of [...byDay.keys()].sort()) {
+      const h = byDay.get(date)!;
       const dailyOt = Math.max(0, h - settings.ot_daily_threshold);
-      otCalc += dailyOt;
       const wk = startOfWeek(date);
-      weekNormal.set(wk, (weekNormal.get(wk) ?? 0) + (h - dailyOt));
+      const before = weekNormal.get(wk) ?? 0;
+      const after = before + (h - dailyOt);
+      weekNormal.set(wk, after);
+      const weeklyOt = Math.max(0, after - settings.ot_weekly_threshold) - Math.max(0, before - settings.ot_weekly_threshold);
+      otByDay.set(date, dailyOt + weeklyOt);
+      otCalc += dailyOt + weeklyOt;
     }
-    for (const h of weekNormal.values()) otCalc += Math.max(0, h - settings.ot_weekly_threshold);
     // Rest-day work beyond a normal day's hours is overtime
     if (isFT) for (const s of restShifts) otCalc += Math.max(0, s.hours - normalDailyHours);
   }
-  const otHours = ov.otHours ?? otCalc;
+  // Overtime is ad hoc, so by default HR keys it on the payslip; ot_auto applies the calculation instead.
+  const otHours = ov.otHours ?? (settings.ot_auto ? otCalc : 0);
   if (otHours > 72) warnings.push(`Overtime of ${hrs(otHours)} exceeds the MOM limit of 72 hours a month.`);
 
   const earnings: PayLine[] = [];
@@ -277,21 +288,44 @@ export function calculatePayslip(input: PayrollInput): PayslipResult {
   } else {
     const rate = emp.hourly_rate ?? 0;
     if (!rate) warnings.push('No hourly rate set for this part-timer.');
-    normalHours = Math.max(0, totalHours - (emp.ot_eligible ? otHours : 0));
-    addEarning({ code: 'BASIC', label: 'Hourly wages', amount: normalHours * rate, wageType: 'OW', detail: `${hrs(normalHours)} × $${fmt(rate)}` });
+    // Saturdays and Sundays can have their own hourly rate (blank = same as weekdays).
+    const weekendRate = emp.weekend_hourly_rate ?? rate;
+    const isWeekend = (d: YMD) => weekday(d) === 0 || weekday(d) === 6;
+    const sumOn = (xs: { date: YMD; hours: number }[], weekend: boolean) => xs.filter((s) => isWeekend(s.date) === weekend).reduce((a, s) => a + s.hours, 0);
+
+    const ot = emp.ot_eligible ? otHours : 0;
+    // Weekend OT hours: as HR keyed them, else in the same proportion as the timesheets suggest.
+    const otWeekendCalc = [...otByDay].filter(([d]) => isWeekend(d)).reduce((a, [, h]) => a + h, 0);
+    const otWeekend = ov.otWeekendHours != null ? Math.min(ot, Math.max(0, ov.otWeekendHours)) : otCalc > 0 ? (ot * otWeekendCalc) / otCalc : 0;
+    const otWeekday = ot - otWeekend;
+    normalHours = Math.max(0, totalHours - ot);
+    const weekendNormal = Math.max(0, sumOn(worked, true) - otWeekend);
+    const weekdayNormal = Math.max(0, normalHours - weekendNormal);
+
+    if (weekendRate === rate) {
+      addEarning({ code: 'BASIC', label: 'Hourly wages', amount: normalHours * rate, wageType: 'OW', detail: `${hrs(normalHours)} × $${fmt(rate)}` });
+    } else {
+      addEarning({ code: 'BASIC', label: 'Hourly wages (weekdays)', amount: weekdayNormal * rate, wageType: 'OW', detail: `${hrs(weekdayNormal)} × $${fmt(rate)}` });
+      addEarning({ code: 'WEEKEND', label: 'Hourly wages (weekends)', amount: weekendNormal * weekendRate, wageType: 'OW', detail: `${hrs(weekendNormal)} × $${fmt(weekendRate)}` });
+    }
     addEarning({ code: 'ALLOWANCE', label: 'Fixed allowance', amount: emp.fixed_allowance ?? 0, wageType: 'OW' });
-    if (otHours > 0 && emp.ot_eligible) {
+    if (ot > 0) {
+      const parts = [otWeekday > 0 && `${hrs(otWeekday)} × $${fmt(rate)}`, otWeekend > 0 && `${hrs(otWeekend)} × $${fmt(weekendRate)}`].filter(Boolean);
       addEarning({
         code: 'OT',
         label: 'Overtime pay',
-        amount: otHours * rate * settings.ot_multiplier,
+        amount: (otWeekday * rate + otWeekend * weekendRate) * settings.ot_multiplier,
         wageType: 'OW',
-        detail: `${hrs(otHours)} × $${fmt(rate)} × ${settings.ot_multiplier}`,
+        detail: `${parts.length > 1 ? `(${parts.join(' + ')})` : parts[0]} × ${settings.ot_multiplier}`,
       });
     }
-    // Extra pay for hours worked on a public holiday (on top of the normal hourly wage)
+    // Extra pay for hours worked on a public holiday (on top of the normal hourly wage), at that day's rate
     if (phHours > 0) {
-      addEarning({ code: 'PH', label: 'Public holiday worked (extra)', amount: phHours * rate, wageType: 'OW', detail: `${hrs(phHours)} × $${fmt(rate)}` });
+      const ph = worked.filter((s) => s.dayType === 'public_holiday');
+      const phWeekend = sumOn(ph, true);
+      const phWeekday = phHours - phWeekend;
+      const parts = [phWeekday > 0 && `${hrs(phWeekday)} × $${fmt(rate)}`, phWeekend > 0 && `${hrs(phWeekend)} × $${fmt(weekendRate)}`].filter(Boolean);
+      addEarning({ code: 'PH', label: 'Public holiday worked (extra)', amount: phWeekday * rate + phWeekend * weekendRate, wageType: 'OW', detail: parts.join(' + ') });
     }
     if (paidLeaveDays > 0) {
       const dailyHours = emp.contract_hours_per_week ? emp.contract_hours_per_week / daysPerWeek : 0;
@@ -363,6 +397,7 @@ export function calculatePayslip(input: PayrollInput): PayslipResult {
       worked: money(totalHours),
       normal: money(normalHours),
       ot: money(otHours),
+      otSuggested: money(otCalc),
       publicHoliday: money(phHours),
       restDay: money(restHours),
     },

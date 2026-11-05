@@ -371,10 +371,20 @@ function PayslipEditor({ payslip, run, ctx, company, onClose, onSaved }: {
         <div className="stack mb">
           <div className="form-grid">
             <label className="field">
-              OT hours <span className="hint">(calculated: {auto?.hours.ot ?? '…'})</span>
-              <input type="number" min="0" step="0.25" placeholder="use calculated" value={ov.otHours ?? ''}
+              OT hours{' '}
+              <span className="hint">
+                {!emp.ot_eligible ? '(not on paid overtime)' : ctx?.settings.ot_auto ? `(calculated: ${auto?.hours.ot ?? '…'})` : `(timesheets suggest: ${auto?.hours.otSuggested ?? '…'})`}
+              </span>
+              <input type="number" min="0" step="0.25" placeholder={ctx?.settings.ot_auto ? 'use calculated' : '0'} value={ov.otHours ?? ''} disabled={!emp.ot_eligible}
                 onChange={(e) => setOv({ ...ov, otHours: e.target.value === '' ? null : Number(e.target.value) })} />
             </label>
+            {emp.employment_type === 'PT' && emp.weekend_hourly_rate != null && emp.weekend_hourly_rate !== emp.hourly_rate && (ov.otHours ?? 0) > 0 && (
+              <label className="field">
+                Of which on Sat/Sun <span className="hint">(paid at the weekend rate)</span>
+                <input type="number" min="0" step="0.25" placeholder="as in timesheets" value={ov.otWeekendHours ?? ''}
+                  onChange={(e) => setOv({ ...ov, otWeekendHours: e.target.value === '' ? null : Number(e.target.value) })} />
+              </label>
+            )}
             <label className="field">
               Unpaid leave days <span className="hint">(from leave: {auto?.unpaidDays ?? '…'})</span>
               <input type="number" min="0" step="0.5" placeholder="use leave records" value={ov.unpaidDays ?? ''}

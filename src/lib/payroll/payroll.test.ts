@@ -98,6 +98,7 @@ const baseEmployee: Employee = {
   employment_type: 'FT',
   monthly_basic: 3000,
   hourly_rate: null,
+  weekend_hourly_rate: null,
   fixed_allowance: 0,
   ot_eligible: false,
   work_days: [1, 2, 3, 4, 5],
@@ -158,7 +159,8 @@ const run = (p: Omit<Partial<PayrollInput>, 'employee'> & { employee?: Partial<E
     leaves: [],
     leaveTypes,
     holidays: new Set(['2026-12-25']),
-    settings: DEFAULT_PAYROLL_SETTINGS,
+    // Most tests check the OT calculation itself, so they switch it on; see "manual overtime" for the default.
+    settings: { ...DEFAULT_PAYROLL_SETTINGS, ot_auto: true },
     ...p,
     employee: { ...baseEmployee, ...p.employee },
   });
@@ -227,6 +229,48 @@ describe('Payslip', () => {
   it('part-timer public holiday extra pay', () => {
     const r = run({ month: 12, employee: pt, shifts: [shift('2026-12-25', '10:00', '18:00')] });
     expect(r.earnings.find((e) => e.code === 'PH')?.amount).toBe(98);
+  });
+  const ptWeekend: Partial<Employee> = { ...pt, weekend_hourly_rate: 16, work_days: [0, 1, 2, 3, 4, 5, 6] };
+  it('part-timer weekend rate, including overtime on a weekend day', () => {
+    // Sun 1 Nov 11:00–22:00 with a 1h break: 10h, of which 1h is over the 9h daily limit
+    const r = run({ month: 11, employee: ptWeekend, shifts: [shift('2026-11-01', '11:00', '22:00')] });
+    expect(r.earnings.find((e) => e.code === 'BASIC')).toBeUndefined();
+    expect(r.earnings.find((e) => e.code === 'WEEKEND')?.amount).toBe(144);
+    expect(r.earnings.find((e) => e.code === 'OT')?.amount).toBe(24);
+    expect(r.grossWages).toBe(168);
+  });
+  it('part-timer weekday and weekend hours on separate lines', () => {
+    const r = run({ employee: ptWeekend, shifts: [shift('2026-10-05', '10:00', '18:00'), shift('2026-10-10', '10:00', '18:00')] });
+    expect(r.earnings.find((e) => e.code === 'BASIC')?.amount).toBe(98);
+    expect(r.earnings.find((e) => e.code === 'WEEKEND')?.amount).toBe(112);
+  });
+  it('weekly overtime falls on the day that passes 44 hours', () => {
+    // Mon–Thu 9h each (36h), then Sat 9h: the 45th hour is on Saturday
+    const days = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-10'];
+    const r = run({ employee: ptWeekend, shifts: days.map((d) => shift(d, '09:00', '19:00')) });
+    expect(r.hours.ot).toBe(1);
+    expect(r.earnings.find((e) => e.code === 'BASIC')?.amount).toBe(504);
+    expect(r.earnings.find((e) => e.code === 'WEEKEND')?.amount).toBe(128);
+    expect(r.earnings.find((e) => e.code === 'OT')?.amount).toBe(24);
+  });
+  describe('manual overtime (the default)', () => {
+    const manual = { settings: DEFAULT_PAYROLL_SETTINGS, month: 11, employee: ptWeekend, shifts: [shift('2026-11-01', '11:00', '22:00')] };
+    it('pays every hour at the normal rate until HR keys OT, but still suggests it', () => {
+      const r = run(manual);
+      expect(r.hours.ot).toBe(0);
+      expect(r.hours.otSuggested).toBe(1);
+      expect(r.earnings.find((e) => e.code === 'WEEKEND')?.amount).toBe(160);
+      expect(r.earnings.find((e) => e.code === 'OT')).toBeUndefined();
+    });
+    it('keyed OT hours come out of the worked hours, at the weekend rate where keyed', () => {
+      const r = run({ ...manual, overrides: { otHours: 2, otWeekendHours: 2 } });
+      expect(r.earnings.find((e) => e.code === 'WEEKEND')?.amount).toBe(128);
+      expect(r.earnings.find((e) => e.code === 'OT')?.amount).toBe(48);
+    });
+    it('full-timer OT keyed by hand', () => {
+      const r = run({ settings: DEFAULT_PAYROLL_SETTINGS, employee: { monthly_basic: 2000, ot_eligible: true }, overrides: { otHours: 1 } });
+      expect(r.earnings.find((e) => e.code === 'OT')?.amount).toBe(15.73);
+    });
   });
   it('overrides: bonus as AW, reimbursement outside CPF, switched-off lines', () => {
     const r = run({

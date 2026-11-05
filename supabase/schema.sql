@@ -153,6 +153,10 @@ create table if not exists public.payslips (
 );
 create index if not exists payslips_employee_idx on public.payslips (employee_id, year, month);
 
+-- Columns added after the first release (CREATE TABLE IF NOT EXISTS won't add them to an existing table)
+-- Part-timers' Saturday/Sunday hourly rate; null = same as the weekday rate
+alter table public.employees add column if not exists weekend_hourly_rate numeric(8, 2);
+
 -- ============================================================
 -- Helper functions
 -- ============================================================

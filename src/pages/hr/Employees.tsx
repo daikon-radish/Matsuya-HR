@@ -7,7 +7,9 @@ import { SHG_LABELS } from '../../lib/payroll/shg';
 import type { Employee } from '../../lib/types';
 
 export function payLabel(e: Employee): string {
-  return e.employment_type === 'FT' ? `${fmtMoney(e.monthly_basic)}/mth` : `${fmtMoney(e.hourly_rate)}/hr`;
+  if (e.employment_type === 'FT') return `${fmtMoney(e.monthly_basic)}/mth`;
+  const weekend = e.weekend_hourly_rate != null && e.weekend_hourly_rate !== e.hourly_rate ? ` (${fmtMoney(e.weekend_hourly_rate)} Sat/Sun)` : '';
+  return `${fmtMoney(e.hourly_rate)}/hr${weekend}`;
 }
 
 export default function Employees() {
@@ -17,11 +19,11 @@ export default function Employees() {
   const list = (data ?? []).filter((e) => showInactive || e.active);
 
   function exportExcel() {
-    const header = ['Code', 'Name', 'Email', 'Phone', 'Type', 'Job title', 'Outlet', 'Monthly basic', 'Hourly rate', 'Fixed allowance', 'OT eligible',
+    const header = ['Code', 'Name', 'Email', 'Phone', 'Type', 'Job title', 'Outlet', 'Monthly basic', 'Hourly rate', 'Sat/Sun hourly rate', 'Fixed allowance', 'OT eligible',
       'Residency', 'PR since', 'SHG fund', 'Date of birth', 'Start date', 'End date', 'Active'];
-    const rows = (data ?? []).map((e) => [e.emp_code, e.full_name, e.email, e.phone, e.employment_type, e.job_title, e.outlet, e.monthly_basic, e.hourly_rate,
+    const rows = (data ?? []).map((e) => [e.emp_code, e.full_name, e.email, e.phone, e.employment_type, e.job_title, e.outlet, e.monthly_basic, e.hourly_rate, e.weekend_hourly_rate,
       e.fixed_allowance, e.ot_eligible ? 'Yes' : 'No', e.residency, e.pr_start_date, SHG_LABELS[e.shg_fund], e.dob, e.start_date, e.end_date, e.active ? 'Yes' : 'No']);
-    downloadWorkbook('Matsuya employees.xlsx', [{ name: 'Employees', rows: [header, ...rows], widths: [8, 24, 26, 12, 6, 18, 14, 12, 10, 12, 10, 10, 11, 16, 12, 11, 11, 7] }]);
+    downloadWorkbook('Matsuya employees.xlsx', [{ name: 'Employees', rows: [header, ...rows], widths: [8, 24, 26, 12, 6, 18, 14, 12, 10, 12, 12, 10, 10, 11, 16, 12, 11, 11, 7] }]);
   }
 
   return (

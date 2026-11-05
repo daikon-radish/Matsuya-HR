@@ -57,6 +57,15 @@ export default function Settings() {
           </div>
           <div className="card stack">
             <h2>Payroll rules</h2>
+            <label className="check">
+              <input type="checkbox" checked={payroll.ot_auto} onChange={(e) => setPayroll({ ...payroll, ot_auto: e.target.checked })} />
+              Work out overtime automatically from timesheets
+            </label>
+            <p className="muted small" style={{ marginTop: -6 }}>
+              {payroll.ot_auto
+                ? 'Hours beyond the limits below are paid as overtime. You can still change OT hours on each payslip.'
+                : 'Overtime is entered by hand on each payslip. The payslip shows how much the timesheets suggest, using the limits below.'}
+            </p>
             <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <label className="field">
                 OT rate (× hourly basic)

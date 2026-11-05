@@ -52,10 +52,10 @@ The logic lives in [`src/lib/payroll/`](src/lib/payroll/) and is covered by [`pa
 
 | Item | Rule |
 |---|---|
-| Part-timers | Hours from timesheets × hourly rate. Same rate every day of the week. |
+| Part-timers | Hours from timesheets × hourly rate. Saturdays and Sundays can have their own rate, set per employee (new part-timers start at $14 weekdays, $16 Sat/Sun). |
 | Full-timers | Monthly basic + fixed allowance. |
-| Overtime | Only for staff marked "Paid overtime". 1.5× for hours beyond 9 a day or 44 a week (Settings). Full-timer hourly rate = 12 × basic ÷ (52 × 44). Warns above 72 h/month. |
-| Public holiday worked | An extra day's basic pay for full-timers. Part-timers get the hours worked paid again at the basic rate. HR can untick it when giving a day off in lieu. |
+| Overtime | Keyed by hand on each payslip, since OT is ad hoc; the payslip shows what the timesheets suggest (hours beyond 9 a day or 44 a week). Settings can switch to working it out automatically. Only for staff marked "Paid overtime", at 1.5×. Keyed OT hours are part of the hours worked, so they're paid at 1.5× instead of the normal rate. Part-timers' weekend OT uses the weekend rate. Full-timer hourly rate = 12 × basic ÷ (52 × 44). Warns above 72 h/month. |
+| Public holiday worked | An extra day's basic pay for full-timers. Part-timers get the hours worked paid again at that day's rate. HR can untick it when giving a day off in lieu. |
 | Rest day worked | Full-timers with paid OT, rostered by HR (employer's request): one day's pay (up to half a normal day) or two days' pay; hours beyond a normal day are OT. If the employee asked to work that day, MOM's rate is half that: untick "Rest day worked" and add the amount as an earning. |
 | Unpaid leave / joining or leaving mid-month | MOM formula: monthly gross × days not worked ÷ working days in the month. Reduces CPF wages. |
 | Paid leave (part-timers) | Days × (contract hours per week ÷ work days per week) × rate. |

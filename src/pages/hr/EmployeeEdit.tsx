@@ -22,6 +22,7 @@ const BLANK: Draft = {
   employment_type: 'FT',
   monthly_basic: null,
   hourly_rate: 14,
+  weekend_hourly_rate: 16,
   fixed_allowance: 0,
   ot_eligible: true,
   work_days: [1, 2, 3, 4, 5],
@@ -104,6 +105,7 @@ function EmployeeEdit() {
       nric_last4: str((draft.nric_last4 ?? '').toUpperCase()),
       monthly_basic: draft.employment_type === 'FT' ? draft.monthly_basic : null,
       hourly_rate: draft.employment_type === 'PT' ? draft.hourly_rate : null,
+      weekend_hourly_rate: draft.employment_type === 'PT' ? draft.weekend_hourly_rate : null,
       pr_start_date: draft.residency === 'PR' ? draft.pr_start_date : null,
     };
     try {
@@ -237,10 +239,17 @@ function EmployeeEdit() {
                 <input type="number" min="0" step="0.01" value={draft.monthly_basic ?? ''} onChange={(e) => set('monthly_basic', num(e.target.value))} />
               </label>
             ) : (
-              <label className="field">
-                Hourly rate ($)
-                <input type="number" min="0" step="0.01" value={draft.hourly_rate ?? ''} onChange={(e) => set('hourly_rate', num(e.target.value))} />
-              </label>
+              <>
+                <label className="field">
+                  Hourly rate, weekdays ($)
+                  <input type="number" min="0" step="0.01" value={draft.hourly_rate ?? ''} onChange={(e) => set('hourly_rate', num(e.target.value))} />
+                </label>
+                <label className="field">
+                  Hourly rate, Sat &amp; Sun ($)
+                  <input type="number" min="0" step="0.01" placeholder="same as weekdays" value={draft.weekend_hourly_rate ?? ''}
+                    onChange={(e) => set('weekend_hourly_rate', num(e.target.value))} />
+                </label>
+              </>
             )}
             <label className="field">
               Fixed monthly allowance ($)

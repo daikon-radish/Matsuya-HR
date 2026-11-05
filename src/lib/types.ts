@@ -23,6 +23,8 @@ export interface Employee {
   employment_type: 'FT' | 'PT';
   monthly_basic: number | null;
   hourly_rate: number | null;
+  /** Part-timers' Saturday/Sunday rate; null = same as hourly_rate */
+  weekend_hourly_rate: number | null;
   fixed_allowance: number;
   ot_eligible: boolean;
   /** 0 = Sunday … 6 = Saturday */
@@ -140,6 +142,8 @@ export interface CompanySettings {
 }
 
 export interface PayrollSettings {
+  /** Work out OT from timesheets; off = HR keys OT hours on each payslip */
+  ot_auto: boolean;
   ot_multiplier: number;
   ot_daily_threshold: number;
   ot_weekly_threshold: number;
@@ -147,6 +151,7 @@ export interface PayrollSettings {
 }
 
 export const DEFAULT_PAYROLL_SETTINGS: PayrollSettings = {
+  ot_auto: false,
   ot_multiplier: 1.5,
   ot_daily_threshold: 9,
   ot_weekly_threshold: 44,
