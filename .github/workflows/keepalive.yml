@@ -1,10 +1,10 @@
 name: Keep Supabase awake
 
-# Free Supabase projects pause after 7 days without activity. This pings the
-# database every 3 days so the portal is always ready (e.g. over long holidays).
+# Free Supabase projects pause after 7 days without database activity. This reads from
+# the database once a day so the portal is always ready (e.g. over long holidays).
 on:
   schedule:
-    - cron: '17 2 */3 * *'
+    - cron: '17 2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,6 +19,12 @@ jobs:
           URL: ${{ vars.VITE_SUPABASE_URL }}
           KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
         run: |
-          curl -fsS -X POST "$URL/rest/v1/rpc/ping" \
+          host="${URL#https://}"
+          host="${host%%/*}"
+          if ! getent hosts "$host" > /dev/null; then
+            echo "::error::$host doesn't exist any more, which means the Supabase project is paused. Open supabase.com/dashboard, choose the project and click Restore."
+            exit 1
+          fi
+          curl -fsS --retry 3 --retry-delay 20 -X POST "$URL/rest/v1/rpc/ping" \
             -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
             -H "Content-Type: application/json" -d '{}'

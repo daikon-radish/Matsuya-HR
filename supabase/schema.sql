@@ -232,8 +232,11 @@ create trigger leave_guard before update on public.leave_requests
   for each row execute function public.guard_leave_update();
 
 -- Keep-alive endpoint for the scheduled GitHub Action (free projects pause after 7 idle days).
+-- It reads a real table: a bare "select now()" didn't count as activity and the project was paused anyway.
 create or replace function public.ping()
-returns timestamptz language sql stable as $$ select now(); $$;
+returns timestamptz language sql volatile security definer set search_path = public as $$
+  select now() from (select count(*) from public.settings) s;
+$$;
 grant execute on function public.ping() to anon;
 
 -- ============================================================

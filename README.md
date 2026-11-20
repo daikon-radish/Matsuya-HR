@@ -35,7 +35,7 @@ It's a static React site (GitHub Pages) backed by Supabase (Postgres, logins and
 
 Both values are designed to be public, so storing them as plain variables is fine. The database is protected by the security rules, not by hiding the key. **Never** put the `service_role` key in this repo.
 
-The **Keep Supabase awake** workflow pings the database every 3 days, because free projects pause after a week of no use. GitHub stops scheduled workflows on repos with no commits for 60 days. If that happens, re-enable it from the Actions tab.
+The **Keep Supabase awake** workflow reads from the database once a day, because free projects pause after a week without database activity. If it fails saying the project is paused, open the Supabase dashboard, choose the project and click **Restore**. GitHub stops scheduled workflows on repos with no commits for 60 days. If that happens, re-enable it from the Actions tab.
 
 ### 3. Local development
 
